@@ -38,7 +38,10 @@ def mt5_symbol_info(symbol):
 
 
 while 1:
+    
     reference_price = mt5.symbol_info_tick(db.PETR4.stock_name).ask
+    print("Iniciando Loop -> " + str(db.PETR4.stock_name) + " - Preço: " + str(reference_price))
+
 
     last_price = reference_price
 
@@ -62,18 +65,23 @@ while 1:
 
     def data_store(type, days_to_due_date, option_data):
         for opt in option_data:
-            symbol_data = mt5_symbol_info(opt.option_name)
-            data_to_store = db.PETR4_OPTIONS(stock_price=reference_price
-            ,option=opt.option_name, strike=opt.strike ,deal_type_zone=type,due_date=opt.due_date
-            ,days_to_due_date=days_to_due_date,timestamp_option=symbol_data['timestamp']
-            ,updated_at=upload_at,last_tick=symbol_data['last'],bid=symbol_data['bid'],ask=symbol_data['ask'])
+            if check_if_symbol_is_selected(opt.option_name) == True:
+                symbol_data = mt5_symbol_info(opt.option_name)
+                data_to_store = db.PETR4_OPTIONS(stock_price=reference_price
+                ,option=opt.option_name, strike=opt.strike ,deal_type_zone=type,due_date=opt.due_date
+                ,days_to_due_date=days_to_due_date,timestamp_option=symbol_data['timestamp']
+                ,updated_at=upload_at,last_tick=symbol_data['last'],bid=symbol_data['bid'],ask=symbol_data['ask'])
 
-            petr4_options.append(data_to_store)
+                petr4_options.append(data_to_store)
         
         db.session.add_all(petr4_options)
         db.session.commit()
 
     data_store("ATM",days_to_due_date, [atm_option])
+    data_store("OTM",days_to_due_date, otm_option)
+    data_store("ITM",days_to_due_date, itm_option)
+
+    print("Concluido, aguardando...")
     time.sleep(15)
 
     # options = {}
