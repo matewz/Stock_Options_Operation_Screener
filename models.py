@@ -34,7 +34,7 @@ url_db = quote_plus(parametros)
 
 # Conexão.
 # Para debug utilizar echo=True
-engine = create_engine('mssql+pyodbc:///?odbc_connect=%s' % url_db, echo=True)
+engine = create_engine('mssql+pyodbc:///?odbc_connect=%s' % url_db, echo=False)
 
 # Criando uma classe "Session" já configurada.
 # Session é instanciado posteriormente para interação com a tabela.
@@ -47,7 +47,7 @@ class PETR4(Base):
     # Nome da tabela, se a variável não for
     # declarada será utilizado o nome da classe.
     __tablename__ = 'PETR4_Options_List'
-
+    stock_name = 'PETR4'
     # Colunas da tabela.
     # Série	Estilo	Preço de Exercício	Vencimento
     id = Column(Integer, primary_key=True)
