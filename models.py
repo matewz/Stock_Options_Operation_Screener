@@ -1,5 +1,4 @@
 from sqlalchemy.sql.sqltypes import Date, DateTime, Float
-import pyodbc
 from urllib.parse import quote_plus
 
 from sqlalchemy import Column, Integer, String, create_engine

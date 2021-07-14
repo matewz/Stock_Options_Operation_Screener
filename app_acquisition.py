@@ -39,51 +39,80 @@ def mt5_symbol_info(symbol):
 
 while 1:
     
-    reference_price = mt5.symbol_info_tick(db.PETR4.stock_name).ask
-    print("Iniciando Loop -> " + str(db.PETR4.stock_name) + " - Preço: " + str(reference_price))
+    if datetime.datetime.now().hour >= 10 and datetime.datetime.now().hour <= 17:
+        reference_price = mt5.symbol_info_tick(db.PETR4.stock_name).ask
+        print("Iniciando Loop -> " + str(db.PETR4.stock_name) + " - Preço: " + str(reference_price))
+
+        last_price = reference_price
+
+        this_month = datetime.datetime.today().date()
+
+        due_dates = db.session.query(db.PETR4.due_date).distinct().filter(db.PETR4.due_date > datetime.datetime.today()).limit(5)
+        due_dates = list(due_dates)
+
+        month_deadline = due_dates[0].due_date
+        next_month_dealine = due_dates[1].due_date
+        after_next_month_dealine = due_dates[2].due_date
+        long_due = due_dates[3].due_date
+
+        diff_betwen_dates = month_deadline - this_month
+        if diff_betwen_dates.days < 5:
+            month_deadline = next_month_dealine
+            next_month_dealine = after_next_month_dealine
+            after_next_month_dealine = long_due
 
 
-    last_price = reference_price
+        days_to_due_date = (month_deadline - this_month).days
 
-    this_month = datetime.datetime.today().date()
-    month_deadline = db.session.query(db.PETR4).filter(extract('month', db.PETR4.due_date) == datetime.datetime.today().month).first().due_date
+        atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).first()
+        otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == month_deadline).limit(10).all()
+        itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
-    diff_betwen_dates = month_deadline - this_month
-    if diff_betwen_dates.days < 2:
-        month_deadline = db.session.query(db.PETR4).filter(extract('month', db.PETR4.due_date) == datetime.datetime.today().month+1).first().due_date
+        next_month_atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == next_month_dealine).order_by(db.PETR4.strike.desc()).first()
+        next_month_otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == next_month_dealine).limit(10).all()
+        next_month_itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == next_month_dealine).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
-    days_to_due_date = (month_deadline - this_month).days
+        after_next_month_atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == after_next_month_dealine).order_by(db.PETR4.strike.desc()).first()
+        after_next_month_otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == after_next_month_dealine).limit(10).all()
+        after_next_month_itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == after_next_month_dealine).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
-    atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).first()
-    otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == month_deadline).limit(10).all()
-    itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
-    petr4_options = []
+        petr4_options = []
 
-    #stock_price, option, strike,deal_type_zone,due_date,days_to_due_date,timestamp_option,updated_at,last_tick,bid,ask):
-    upload_at = datetime.datetime.now()
+        #stock_price, option, strike,deal_type_zone,due_date,days_to_due_date,timestamp_option,updated_at,last_tick,bid,ask):
+        upload_at = datetime.datetime.now()
 
-    def data_store(type, days_to_due_date, option_data):
-        for opt in option_data:
-            if check_if_symbol_is_selected(opt.option_name) == True:
-                symbol_data = mt5_symbol_info(opt.option_name)
-                data_to_store = db.PETR4_OPTIONS(stock_price=reference_price
-                ,option=opt.option_name, strike=opt.strike ,deal_type_zone=type,due_date=opt.due_date
-                ,days_to_due_date=days_to_due_date,timestamp_option=symbol_data['timestamp']
-                ,updated_at=upload_at,last_tick=symbol_data['last'],bid=symbol_data['bid'],ask=symbol_data['ask'])
+        def data_store(type, days_to_due_date, option_data):
+            for opt in option_data:
+                if check_if_symbol_is_selected(opt.option_name) == True:
+                    symbol_data = mt5_symbol_info(opt.option_name)
+                    data_to_store = db.PETR4_OPTIONS(stock_price=reference_price
+                    ,option=opt.option_name, strike=opt.strike ,deal_type_zone=type,due_date=opt.due_date
+                    ,days_to_due_date=days_to_due_date,timestamp_option=symbol_data['timestamp']
+                    ,updated_at=upload_at,last_tick=symbol_data['last'],bid=symbol_data['bid'],ask=symbol_data['ask'])
 
-                petr4_options.append(data_to_store)
-        
-        db.session.add_all(petr4_options)
-        db.session.commit()
+                    petr4_options.append(data_to_store)
+            
+            db.session.add_all(petr4_options)
+            db.session.commit()
 
-    data_store("ATM",days_to_due_date, [atm_option])
-    data_store("OTM",days_to_due_date, otm_option)
-    data_store("ITM",days_to_due_date, itm_option)
+        data_store("ATM",days_to_due_date, [atm_option])
+        data_store("OTM",days_to_due_date, otm_option)
+        data_store("ITM",days_to_due_date, itm_option)
 
-    print("Concluido, aguardando...")
-    time.sleep(15)
+        data_store("ATM",days_to_due_date, [next_month_atm_option])
+        data_store("OTM",days_to_due_date, next_month_otm_option)
+        data_store("ITM",days_to_due_date, next_month_itm_option)
 
+        data_store("ATM",days_to_due_date, [after_next_month_atm_option])
+        data_store("OTM",days_to_due_date, after_next_month_otm_option)
+        data_store("ITM",days_to_due_date, after_next_month_itm_option)
+
+        print("Concluido, aguardando...")
+        time.sleep(15)
+    else:
+        print("Out of work time. Go to home and retire...")
+        break
     # options = {}
 # options.update( { atm_option.option_name: { "type": "ATM", "strike": atm_option.strike, "due_date": atm_option.due_date.strftime("%d-%m-%Y"), "days_to_due_date": days_to_due_date, "symbol_info": mt5_symbol_info(atm_option) }})
 
