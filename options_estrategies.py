@@ -1,6 +1,6 @@
 from sqlalchemy import extract, desc
 import datetime
-import models as db
+#import models as db
 import time
 import MetaTrader5 as mt5
 import pandas as pd
@@ -23,8 +23,14 @@ class options_estrategies():
         print("initialize() failed")
         mt5.shutdown()
     
-    def __init__(self):
-        pass
+    stock_class = ''
+    stock_class_OPTIONS = ''
+    model = None
+
+    def __init__(self, model, stock_class, stock_class_OPTIONS):
+        self.stock_class = stock_class
+        self.stock_class_OPTIONS = stock_class_OPTIONS
+        self.model = model
 
     def get_book_and_return_first_line(self, symb):
         #get ASK and BID price and volume
@@ -181,8 +187,8 @@ class options_estrategies():
         return model_return
     
 
-    def update_quotes_from_database(self):
-        due_dates = db.session.query(db.PETR4.due_date).distinct().filter(db.PETR4.due_date > datetime.datetime.today()).limit(5)
+    def update_quotes_from_database(self,just_last_update = True):
+        due_dates = self.model.session.query(self.stock_class.due_date).distinct().filter(self.stock_class.due_date > datetime.datetime.today()).limit(5)
         due_dates = list(due_dates)
 
         month_deadline = due_dates[0].due_date
@@ -198,16 +204,22 @@ class options_estrategies():
             next_month_dealine = after_next_month_dealine
             after_next_month_dealine = long_due
 
-        last_date = db.session.query(db.PETR4_OPTIONS).filter(db.PETR4_OPTIONS.due_date == month_deadline).order_by(desc(db.PETR4_OPTIONS.updated_at)).first()
-        month_last_ticks = db.session.query(db.PETR4_OPTIONS).filter(db.PETR4_OPTIONS.updated_at == last_date.updated_at, db.PETR4_OPTIONS.due_date == month_deadline).order_by(db.PETR4_OPTIONS.strike).all()
-        next_month_last_ticks = db.session.query(db.PETR4_OPTIONS).filter(db.PETR4_OPTIONS.updated_at == last_date.updated_at, db.PETR4_OPTIONS.due_date == next_month_dealine).order_by(db.PETR4_OPTIONS.strike).all()
-        after_next_month_last_ticks = db.session.query(db.PETR4_OPTIONS).filter(db.PETR4_OPTIONS.updated_at == last_date.updated_at, db.PETR4_OPTIONS.due_date == after_next_month_dealine).order_by(db.PETR4_OPTIONS.strike).all()
+        last_date = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == month_deadline).order_by(desc(self.stock_class_OPTIONS.updated_at)).first()
         
-        #for tick in month_last_ticks:
-        #   print(tick.updated_at, tick.timestamp_option, tick.option_name, tick.strike, tick.deal_type_zone, tick.stock_price, tick.bid, tick.ask, tick.last_tick)        
+        if just_last_update == True:
+            month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == month_deadline).order_by(self.stock_class_OPTIONS.strike).all()
+            next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == next_month_dealine).order_by(self.stock_class_OPTIONS.strike).all()
+            after_next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == after_next_month_dealine).order_by(self.stock_class_OPTIONS.strike).all()
+        else:
+            month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == month_deadline).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
+            next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == next_month_dealine).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
+            after_next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == after_next_month_dealine).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
+            
+            #for tick in month_last_ticks:
+            #   print(tick.updated_at, tick.timestamp_option, tick.option_name, tick.strike, tick.deal_type_zone, tick.stock_price, tick.bid, tick.ask, tick.last_tick)        
         
         return [month_last_ticks,next_month_last_ticks,after_next_month_last_ticks]
-        
+
     def butterfly(self, cost_limit = 1, show_broken_wings = False, period = Option_Due.This_Month, mode=ButterFly_Mode.Offline):
         updated_ticks = self.update_quotes_from_database()
         ticks_to_process = 0
