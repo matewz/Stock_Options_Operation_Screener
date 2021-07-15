@@ -4,6 +4,10 @@ import models as model
 
 estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
 
+def testing_tax_operation():
+    returned_tax_operation = estrategies.tax_operation()
+    print(returned_tax_operation)
+
 def testing_ratio_between_strikes_statistic_realtime_compare():
     returned_ratio_compare = estrategies.ratio_between_strikes_statistic_realtime_compare()
     print(returned_ratio_compare)
@@ -24,6 +28,7 @@ def testing_butterfly_realtime_for_this_month():
     butterfly = estrategies.butterfly(0.05,False,Option_Due.This_Month, InformationType.Real_Time)
     print(butterfly)
 
+testing_tax_operation()
 testing_ratio_between_strikes_statistic_realtime_compare()
 testing_ratio_between_strikes_offline()
 testing_ratio_between_strikes_realtime()

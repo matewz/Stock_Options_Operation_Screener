@@ -12,7 +12,7 @@ def ratio_compare():
 
     ratio_deviation_high = returned_ratio_compare[returned_ratio_compare['above_2x_std_dev'] == True]
     if len(ratio_deviation_high) > 0:
-        AvisoSonoro(1500)
+        AvisoSonoro(500)
         print("---------------------------------- 2x dev ---------------------")
         print(ratio_deviation_high)
         print("---------------------------------- 2x dev ---------------------")
@@ -20,7 +20,7 @@ def ratio_compare():
 
 def AvisoSonoro(freq):
     duration = 400  # milliseconds
-    for i in range(0,15):
+    for i in range(0,1):
         winsound.Beep(freq, duration)
 
 while 1:

@@ -263,7 +263,7 @@ class options_estrategies():
         if mode == InformationType.Real_Time:
             return self.check_butterfly_realtime(ticks_to_process,cost_limit = cost_limit, show_broken_wings = show_broken_wings)
 
-    def convert_dict_from_update_ticks_to_dataframe(self,tick_data):
+    def ratio_convert_dict_from_update_ticks_to_dataframe(self,tick_data):
         df_tick_data = pd.DataFrame.from_dict(tick_data)
         df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
         df_tick_data['ratio'] = df_tick_data['bid'] - df_tick_data['ask'].shift(1)
@@ -287,7 +287,7 @@ class options_estrategies():
         for i in ticks_to_process:
             options.append(i.__dict__)
 
-        return_dataframe = self.convert_dict_from_update_ticks_to_dataframe(options)
+        return_dataframe = self.ratio_convert_dict_from_update_ticks_to_dataframe(options)
 
         return return_dataframe
 
@@ -315,7 +315,7 @@ class options_estrategies():
         for i in ticks_to_process:
             options_updated.append(i.__dict__)
 
-        df_options_updated = self.convert_dict_from_update_ticks_to_dataframe(options_updated)
+        df_options_updated = self.ratio_convert_dict_from_update_ticks_to_dataframe(options_updated)
         df_options_updated.reset_index()
         df_options_updated = df_options_updated.set_index('option_name')
         df_options_updated = pd.merge(df_options_updated, ratio_statistic_dataframe, left_index=True, right_index=True)
@@ -323,7 +323,29 @@ class options_estrategies():
         df_options_updated['above_2x_std_dev'] = abs(df_options_updated['ratio']) > abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
         df_options_updated['a2xStdDev_Price'] = abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
         df_options_updated = df_options_updated.drop(columns=['updated_at','StdDev','2xStdDev'])
-        df_options_updated[df_options_updated['above_mean'] == True]
+        df_options_updated = df_options_updated[df_options_updated['above_mean'] == True]
+
         return df_options_updated
 
+    def tax_convert_dict_from_update_ticks_to_dataframe(self, tick_data):
+        df_tick_data = pd.DataFrame.from_dict(tick_data)
+        df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
+        df_tick_data['stock_price'] = df_tick_data.stock_price.astype(float)
+        df_tick_data['exercise_result'] = df_tick_data['strike'] -  df_tick_data['stock_price']  
+            
+        df_tick_data['tax_exercise'] = (((df_tick_data['strike'] -  df_tick_data['stock_price']) + df_tick_data['bid'])  / df_tick_data['stock_price']) * 100
+        df_tick_data['tax'] = (df_tick_data['bid'] / df_tick_data['stock_price'])*100
+        df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike', 'bid','tax_exercise', 'tax']]      
+        return df_tick_data
+    
+    def tax_operation(self):
+        updated_ticks = self.update_quotes(just_last_update=True,mode=InformationType.Real_Time)
+        ticks_to_process = updated_ticks[0]
+        options_updated = []
+        for i in ticks_to_process:
+            options_updated.append(i.__dict__)
 
+        df_options_updated = self.tax_convert_dict_from_update_ticks_to_dataframe(options_updated)
+        df_options_updated.reset_index()
+        df_options_updated = df_options_updated.set_index('option_name')
+        return df_options_updated        
