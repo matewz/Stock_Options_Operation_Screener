@@ -203,8 +203,9 @@ class options_estrategies():
 
     def update_quotes(self,just_last_update = True, mode=InformationType.Offline):
         # You can just get get_real_time_ticks if use last_update == true
-        
-        due_dates = self.model.session.query(self.stock_class.due_date).distinct().filter(self.stock_class.due_date > datetime.datetime.today()).limit(5)
+        session = self.model.Session()
+
+        due_dates = session.query(self.stock_class.due_date).distinct().filter(self.stock_class.due_date > datetime.datetime.today()).limit(5)
         due_dates = list(due_dates)
 
         month_deadline = due_dates[0].due_date
@@ -220,16 +221,16 @@ class options_estrategies():
             next_month_dealine = after_next_month_dealine
             after_next_month_dealine = long_due
 
-        last_date = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == month_deadline).order_by(desc(self.stock_class_OPTIONS.updated_at)).first()
+        last_date = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == month_deadline).order_by(desc(self.stock_class_OPTIONS.updated_at)).first()
         
         if just_last_update == True:
-            month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == month_deadline).order_by(self.stock_class_OPTIONS.strike).all()
-            next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == next_month_dealine).order_by(self.stock_class_OPTIONS.strike).all()
-            after_next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == after_next_month_dealine).order_by(self.stock_class_OPTIONS.strike).all()
+            month_last_ticks = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == month_deadline).order_by(self.stock_class_OPTIONS.strike).all()
+            next_month_last_ticks = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == next_month_dealine).order_by(self.stock_class_OPTIONS.strike).all()
+            after_next_month_last_ticks = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.updated_at == last_date.updated_at, self.stock_class_OPTIONS.due_date == after_next_month_dealine).order_by(self.stock_class_OPTIONS.strike).all()
         else:
-            month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == month_deadline).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
-            next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == next_month_dealine).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
-            after_next_month_last_ticks = self.model.session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == after_next_month_dealine).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
+            month_last_ticks = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == month_deadline).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
+            next_month_last_ticks = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == next_month_dealine).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
+            after_next_month_last_ticks = session.query(self.stock_class_OPTIONS).filter(self.stock_class_OPTIONS.due_date == after_next_month_dealine).order_by(self.stock_class_OPTIONS.updated_at,self.stock_class_OPTIONS.strike).all()
             
             #for tick in month_last_ticks:
             #   print(tick.updated_at, tick.timestamp_option, tick.option_name, tick.strike, tick.deal_type_zone, tick.stock_price, tick.bid, tick.ask, tick.last_tick)        
@@ -238,6 +239,8 @@ class options_estrategies():
 
         if just_last_update == True and mode == InformationType.Real_Time:
             ticks_to_return = self.update_quote_realtime(ticks_to_return)
+        
+        session.close()
 
         return ticks_to_return
 
@@ -263,7 +266,7 @@ class options_estrategies():
     def convert_dict_from_update_ticks_to_dataframe(self,tick_data):
         df_tick_data = pd.DataFrame.from_dict(tick_data)
         df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
-        df_tick_data['ratio'] = df_tick_data['last_tick'] - df_tick_data['last_tick'].shift(1)
+        df_tick_data['ratio'] = df_tick_data['bid'] - df_tick_data['ask'].shift(1)
         df_tick_data = df_tick_data[['option_name', 'strike', 'bid', 'ask', 'last_tick','ratio','stock_price','deal_type_zone','updated_at']]      
         return df_tick_data
 
@@ -316,7 +319,11 @@ class options_estrategies():
         df_options_updated.reset_index()
         df_options_updated = df_options_updated.set_index('option_name')
         df_options_updated = pd.merge(df_options_updated, ratio_statistic_dataframe, left_index=True, right_index=True)
-
         df_options_updated['above_mean'] = abs(df_options_updated['ratio']) > abs(df_options_updated['Mean'])
         df_options_updated['above_2x_std_dev'] = abs(df_options_updated['ratio']) > abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
+        df_options_updated['a2xStdDev_Price'] = abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
+        df_options_updated = df_options_updated.drop(columns=['updated_at','StdDev','2xStdDev'])
+        df_options_updated[df_options_updated['above_mean'] == True]
         return df_options_updated
+
+

@@ -46,8 +46,9 @@ while 1:
         last_price = reference_price
 
         this_month = datetime.datetime.today().date()
+        session = db.Session()
 
-        due_dates = db.session.query(db.PETR4.due_date).distinct().filter(db.PETR4.due_date > datetime.datetime.today()).limit(5)
+        due_dates = session.query(db.PETR4.due_date).distinct().filter(db.PETR4.due_date > datetime.datetime.today()).limit(5)
         due_dates = list(due_dates)
 
         month_deadline = due_dates[0].due_date
@@ -64,17 +65,17 @@ while 1:
 
         days_to_due_date = (month_deadline - this_month).days
 
-        atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).first()
-        otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == month_deadline).limit(10).all()
-        itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
+        atm_option = session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).first()
+        otm_option = session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == month_deadline).limit(10).all()
+        itm_option = session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == month_deadline).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
-        next_month_atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == next_month_dealine).order_by(db.PETR4.strike.desc()).first()
-        next_month_otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == next_month_dealine).limit(10).all()
-        next_month_itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == next_month_dealine).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
+        next_month_atm_option = session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == next_month_dealine).order_by(db.PETR4.strike.desc()).first()
+        next_month_otm_option = session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == next_month_dealine).limit(10).all()
+        next_month_itm_option = session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == next_month_dealine).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
-        after_next_month_atm_option = db.session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == after_next_month_dealine).order_by(db.PETR4.strike.desc()).first()
-        after_next_month_otm_option = db.session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == after_next_month_dealine).limit(10).all()
-        after_next_month_itm_option = db.session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == after_next_month_dealine).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
+        after_next_month_atm_option = session.query(db.PETR4).filter(db.PETR4.strike <= reference_price, db.PETR4.due_date == after_next_month_dealine).order_by(db.PETR4.strike.desc()).first()
+        after_next_month_otm_option = session.query(db.PETR4).filter(db.PETR4.strike > reference_price, db.PETR4.due_date == after_next_month_dealine).limit(10).all()
+        after_next_month_itm_option = session.query(db.PETR4).filter(db.PETR4.strike < reference_price, db.PETR4.due_date == after_next_month_dealine).order_by(db.PETR4.strike.desc()).limit(10).offset(1).all()
 
 
         petr4_options = []
@@ -93,8 +94,8 @@ while 1:
 
                     petr4_options.append(data_to_store)
             
-            db.session.add_all(petr4_options)
-            db.session.commit()
+            session.add_all(petr4_options)
+            session.commit()
 
         data_store("ATM",days_to_due_date, [atm_option])
         data_store("OTM",days_to_due_date, otm_option)

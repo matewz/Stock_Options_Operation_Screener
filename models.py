@@ -3,7 +3,7 @@ from urllib.parse import quote_plus
 
 from sqlalchemy import Column, Integer, String, create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 import credential as secret
 
 # Código baseado na criação de Nato RSC. 
@@ -27,19 +27,20 @@ parametros = (
     'PWD=' + my_secret.Password)
 
 
-
 # Convertendo a string para um padrão de URI HTML.
 url_db = quote_plus(parametros)
-
 # Conexão.
 # Para debug utilizar echo=True
 engine = create_engine('mssql+pyodbc:///?odbc_connect=%s' % url_db, echo=False)
 
 # Criando uma classe "Session" já configurada.
 # Session é instanciado posteriormente para interação com a tabela.
-Session = sessionmaker(bind=engine)
+#Session = sessionmaker(bind=engine)
+session_factory = sessionmaker(bind=engine)
+Session = scoped_session(session_factory)
 
 Base = declarative_base()
+
 
 class PETR4(Base):
     """Cada classe representa uma tabela do banco"""
@@ -118,10 +119,9 @@ class PETR4_OPTIONS(Base):
         self.ask = ask
 
 
-Base.metadata.create_all(engine)
 
-# Criando uma sessão (add, commit, query, etc).
-session = Session()
+def init_db():
+    Base.metadata.create_all(engine)
 
 #if __name__ == "__main__":
     # Verificando se o driver do MS SQL Server está instalado. ODBC Driver 17 for SQL Server
