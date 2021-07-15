@@ -12,7 +12,7 @@ class Option_Due(Enum):
     Next_Month = 2
     After_Month = 3
 
-class ButterFly_Mode(Enum):
+class InformationType(Enum):
     Real_Time = 1
     Offline = 2
 
@@ -31,6 +31,20 @@ class options_estrategies():
         self.stock_class = stock_class
         self.stock_class_OPTIONS = stock_class_OPTIONS
         self.model = model
+
+    def get_realtime_tick(self, symb):
+        return { "timestamp": datetime.datetime.utcfromtimestamp(mt5.symbol_info_tick(symb).time).strftime('%Y-%m-%d %H:%M:%S'), "last": mt5.symbol_info_tick(symb).last,  "bid": mt5.symbol_info_tick(symb).bid , "ask": mt5.symbol_info_tick(symb).ask }
+
+    def update_quote_realtime(self, ticks):
+        updated_ticks = ticks
+        for tick_count in range(0,len(updated_ticks)-1):
+            for option in range(0,len(updated_ticks[tick_count])):
+                symbol_data = self.get_realtime_tick(updated_ticks[tick_count][option].option_name)
+                updated_ticks[tick_count][option].bid = symbol_data['bid']
+                updated_ticks[tick_count][option].ask = symbol_data['ask']
+                updated_ticks[tick_count][option].last_tick =symbol_data['last']
+                updated_ticks[tick_count][option].timestamp_option = symbol_data['timestamp']
+        return updated_ticks 
 
     def get_book_and_return_first_line(self, symb):
         #get ASK and BID price and volume
@@ -187,7 +201,9 @@ class options_estrategies():
         return model_return
     
 
-    def update_quotes_from_database(self,just_last_update = True):
+    def update_quotes(self,just_last_update = True, mode=InformationType.Offline):
+        # You can just get get_real_time_ticks if use last_update == true
+        
         due_dates = self.model.session.query(self.stock_class.due_date).distinct().filter(self.stock_class.due_date > datetime.datetime.today()).limit(5)
         due_dates = list(due_dates)
 
@@ -218,10 +234,15 @@ class options_estrategies():
             #for tick in month_last_ticks:
             #   print(tick.updated_at, tick.timestamp_option, tick.option_name, tick.strike, tick.deal_type_zone, tick.stock_price, tick.bid, tick.ask, tick.last_tick)        
         
-        return [month_last_ticks,next_month_last_ticks,after_next_month_last_ticks]
+        ticks_to_return = [month_last_ticks,next_month_last_ticks,after_next_month_last_ticks]
 
-    def butterfly(self, cost_limit = 1, show_broken_wings = False, period = Option_Due.This_Month, mode=ButterFly_Mode.Offline):
-        updated_ticks = self.update_quotes_from_database()
+        if just_last_update == True and mode == InformationType.Real_Time:
+            ticks_to_return = self.update_quote_realtime(ticks_to_return)
+
+        return ticks_to_return
+
+    def butterfly(self, cost_limit = 1, show_broken_wings = False, period = Option_Due.This_Month, mode=InformationType.Offline):
+        updated_ticks = self.update_quotes()
         ticks_to_process = 0
 
         if period == Option_Due.This_Month:
@@ -233,8 +254,66 @@ class options_estrategies():
         if period == Option_Due.After_Month:
             ticks_to_process = updated_ticks[2]
         
-        if mode == ButterFly_Mode.Offline:
+        if mode == InformationType.Offline:
             return self.check_butterfly_database(ticks_to_process,cost_limit = cost_limit, show_broken_wings = show_broken_wings)
 
-        if mode == ButterFly_Mode.Real_Time:
+        if mode == InformationType.Real_Time:
             return self.check_butterfly_realtime(ticks_to_process,cost_limit = cost_limit, show_broken_wings = show_broken_wings)
+
+    def convert_dict_from_update_ticks_to_dataframe(self,tick_data):
+        df_tick_data = pd.DataFrame.from_dict(tick_data)
+        df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
+        df_tick_data['ratio'] = df_tick_data['last_tick'] - df_tick_data['last_tick'].shift(1)
+        df_tick_data = df_tick_data[['option_name', 'strike', 'bid', 'ask', 'last_tick','ratio','stock_price','deal_type_zone','updated_at']]      
+        return df_tick_data
+
+    def ratio_between_strikes(self, just_last_update= True, mode=InformationType.Offline, period = Option_Due.This_Month):
+
+        updated_ticks = self.update_quotes(just_last_update=just_last_update,mode=mode)
+
+        if period == Option_Due.This_Month:
+            ticks_to_process = updated_ticks[0]
+
+        if period == Option_Due.Next_Month:
+            ticks_to_process = updated_ticks[1]
+
+        if period == Option_Due.After_Month:
+            ticks_to_process = updated_ticks[2]
+
+        options = []
+        for i in ticks_to_process:
+            options.append(i.__dict__)
+
+        return_dataframe = self.convert_dict_from_update_ticks_to_dataframe(options)
+
+        return return_dataframe
+
+    def ratio_between_strikes_statistic_realtime_compare(self):
+        df_options_history  = self.ratio_between_strikes(False)
+
+        ratio_statistic_finder = df_options_history[['updated_at','option_name','ratio']]
+        ratio_statistic_finder.set_index('updated_at')
+        ratio_statistic_finder = ratio_statistic_finder.pivot(index='updated_at', columns='option_name', values='ratio')
+        ratio_statistic_finder = ratio_statistic_finder.dropna(axis=True)
+
+        ratio_statistic_data = {}
+        for (column, value) in ratio_statistic_finder.iteritems():
+            ratio_statistic_data.update({ column: { "Mean": ratio_statistic_finder[column].mean(), "StdDev": ratio_statistic_finder[column].std(), "2xStdDev": (ratio_statistic_finder[column].std()*2)  }}) 
+
+        ratio_statistic_dataframe = pd.DataFrame.from_dict(ratio_statistic_data)
+        ratio_statistic_dataframe = ratio_statistic_dataframe.transpose()
+
+        updated_ticks = self.update_quotes(just_last_update=True,mode=InformationType.Real_Time)
+        ticks_to_process = updated_ticks[0]
+        options_updated = []
+        for i in ticks_to_process:
+            options_updated.append(i.__dict__)
+
+        df_options_updated = self.convert_dict_from_update_ticks_to_dataframe(options_updated)
+        df_options_updated.reset_index()
+        df_options_updated = df_options_updated.set_index('option_name')
+        df_options_updated = pd.merge(df_options_updated, ratio_statistic_dataframe, left_index=True, right_index=True)
+
+        df_options_updated['above_mean'] = abs(df_options_updated['ratio']) > abs(df_options_updated['Mean'])
+        df_options_updated['above_2x_std_dev'] = abs(df_options_updated['ratio']) > abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
+        return df_options_updated

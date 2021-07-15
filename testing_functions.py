@@ -1,17 +1,31 @@
-from sqlalchemy.sql.functions import mode
 import options_estrategies as opt_est
-from options_estrategies import Option_Due, ButterFly_Mode
+from options_estrategies import Option_Due, InformationType
 import models as model
 
-def testing_butterfly_offline_for_this_month():
-    estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
-    butterfly = estrategies.butterfly(0.05,False,Option_Due.This_Month, ButterFly_Mode.Offline)
+estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
+
+def testing_ratio_between_strikes_statistic_realtime_compare():
+    returned_ratio_compare = estrategies.ratio_between_strikes_statistic_realtime_compare()
+    print(returned_ratio_compare)
+
+def testing_ratio_between_strikes_offline():
+    ratio_returned = estrategies.ratio_between_strikes(just_last_update=True, period=Option_Due.This_Month, mode=InformationType.Offline)
+    print(ratio_returned)
+
+def testing_ratio_between_strikes_realtime():
+    ratio_returned = estrategies.ratio_between_strikes(just_last_update=True, period=Option_Due.This_Month, mode=InformationType.Real_Time)
+    print(ratio_returned)
+
+def testing_butterfly_offline_for_this_month():  
+    butterfly = estrategies.butterfly(0.05,False,Option_Due.This_Month, InformationType.Offline)
     print(butterfly)
 
 def testing_butterfly_realtime_for_this_month():
-    estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
-    butterfly = estrategies.butterfly(0.05,False,Option_Due.This_Month, ButterFly_Mode.Real_Time)
+    butterfly = estrategies.butterfly(0.05,False,Option_Due.This_Month, InformationType.Real_Time)
     print(butterfly)
 
+testing_ratio_between_strikes_statistic_realtime_compare()
+testing_ratio_between_strikes_offline()
+testing_ratio_between_strikes_realtime()
 testing_butterfly_offline_for_this_month()
 testing_butterfly_realtime_for_this_month()
