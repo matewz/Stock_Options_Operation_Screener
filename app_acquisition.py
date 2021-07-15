@@ -112,7 +112,7 @@ while 1:
         time.sleep(15)
     else:
         print("Out of work time. Go to home and retire...")
-        break
+        time.sleep(45)
     # options = {}
 # options.update( { atm_option.option_name: { "type": "ATM", "strike": atm_option.strike, "due_date": atm_option.due_date.strftime("%d-%m-%Y"), "days_to_due_date": days_to_due_date, "symbol_info": mt5_symbol_info(atm_option) }})
 

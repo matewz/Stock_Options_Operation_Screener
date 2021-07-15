@@ -292,9 +292,12 @@ class options_estrategies():
         df_options_history  = self.ratio_between_strikes(False)
 
         ratio_statistic_finder = df_options_history[['updated_at','option_name','ratio']]
-        ratio_statistic_finder.set_index('updated_at')
+        ratio_statistic_finder = ratio_statistic_finder.set_index('updated_at')
+        ratio_statistic_finder = ratio_statistic_finder.between_time('10:10', '17:00')
+        ratio_statistic_finder = ratio_statistic_finder.reset_index()
         ratio_statistic_finder = ratio_statistic_finder.pivot(index='updated_at', columns='option_name', values='ratio')
-        ratio_statistic_finder = ratio_statistic_finder.dropna(axis=True)
+        ratio_statistic_finder = ratio_statistic_finder.dropna(axis=1)
+        ratio_statistic_finder
 
         ratio_statistic_data = {}
         for (column, value) in ratio_statistic_finder.iteritems():
