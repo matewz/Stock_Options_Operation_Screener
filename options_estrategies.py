@@ -323,8 +323,6 @@ class options_estrategies():
         df_options_updated['above_2x_std_dev'] = abs(df_options_updated['ratio']) > abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
         df_options_updated['a2xStdDev_Price'] = abs(abs(df_options_updated['Mean']) + df_options_updated['2xStdDev'])
         df_options_updated = df_options_updated.drop(columns=['updated_at','StdDev','2xStdDev'])
-        df_options_updated = df_options_updated[df_options_updated['above_mean'] == True]
-
         return df_options_updated
 
     def tax_convert_dict_from_update_ticks_to_dataframe(self, tick_data):
