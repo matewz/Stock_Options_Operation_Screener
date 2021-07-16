@@ -3,8 +3,32 @@ from options_estrategies import Option_Due, InformationType
 import models as model
 import winsound
 import time
+import datetime
 
 estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
+
+last_warnings = []
+alarme_to_remove = []
+
+def check_exists_alarm(operation, option_name, time_expiration = 4):
+    for i in range(0,len(last_warnings)):
+        if last_warnings[i]['timestamp'] < (datetime.datetime.now() - datetime.timedelta(minutes=time_expiration)):
+            alarme_to_remove.append(last_warnings[i])
+
+    for i in range(0,len(alarme_to_remove)):
+        last_warnings.remove(last_warnings[i])
+        
+    for i in range(0,len(last_warnings)):
+        if last_warnings[i]['operation'] == str(operation) and last_warnings[i]['option_name'] == str(option_name):
+            return True
+        
+    return False
+    
+    
+def add_alarm(operation, option_name):
+    warning = dict(operation=str(operation), option_name=str(option_name), timestamp=datetime.datetime.now())
+    last_warnings.append(warning)
+
 
 def ratio_compare():
     returned_ratio_compare = estrategies.ratio_between_strikes_statistic_realtime_compare()
@@ -22,7 +46,10 @@ def ratio_compare():
 
     return_operation
     if len(return_operation) > 0:
-        AvisoSonoro(500)
+        if check_exists_alarm('RATIO_COMPARE',return_operation) == False:
+            AvisoSonoro(500)
+            add_alarm('RATIO_COMPARE',return_operation)
+        
         print("---------------------------------- 2x dev ---------------------")
         print(return_operation)
         print("---------------------------------- 2x dev ---------------------")
@@ -39,13 +66,19 @@ def thl_compare():
     good_operation_calendar = comparison_calendar[comparison_calendar['thl_percent_of_strike'] < 1.5]
 
     if len(good_operation_THL.index) > 0:
-        AvisoSonoro(400)
+        if check_exists_alarm('THL',good_operation_THL) == False:
+            AvisoSonoro(400)
+            add_alarm('THL',good_operation_THL)
+
         print("---------------------------------- THL ---------------------")
         print(good_operation_THL)
         print("---------------------------------- THL ---------------------")
         
     if len(good_operation_THL_next_month.index) > 0:
-        AvisoSonoro(400)
+        if check_exists_alarm('THL',good_operation_THL_next_month) == False:
+            AvisoSonoro(400)
+            add_alarm('THL',good_operation_THL)
+
         print("---------------------------------- THL NEXT MONTH ---------------------")
         print(good_operation_THL_next_month)
         print("---------------------------------- THL NEXT MONTH ---------------------")
@@ -53,7 +86,10 @@ def thl_compare():
         print(good_operation_THL_next_month)
 
     if len(good_operation_calendar.index) > 0:
-        AvisoSonoro(400)
+        if check_exists_alarm('THL',good_operation_calendar) == False:
+            AvisoSonoro(400)
+            add_alarm('THL',good_operation_THL)
+
         print("---------------------------------- THL CALENDAR ---------------------")
         print(good_operation_THL_next_month)
         print("---------------------------------- THL CALENDAR ---------------------")        
