@@ -349,3 +349,50 @@ class options_estrategies():
         df_options_updated.reset_index()
         df_options_updated = df_options_updated.set_index('option_name')
         return df_options_updated        
+
+
+    def thl_compare_two_dataframes(self,data_thl):
+        df_thl_compare = data_thl.copy()
+        df_thl_compare["thl_cost"] = (df_thl_compare['bid_x'] - df_thl_compare['ask_y'])*-1
+        df_thl_compare["thl_percent_of_strike"] = (df_thl_compare["thl_cost"] / df_thl_compare.index)*100
+        df_thl_compare = df_thl_compare[['option_name_x','option_name_y','thl_percent_of_strike','thl_cost','bid_x','ask_y','deal_type_zone_y']]
+        df_thl_compare = df_thl_compare[df_thl_compare['ask_y'] > 0]
+        return df_thl_compare
+
+    def thl_convert_dict_from_update_ticks_to_dataframe(self,tick_data):
+        df_tick_data = pd.DataFrame.from_dict(tick_data)
+        df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
+        df_tick_data['stock_price'] = df_tick_data.stock_price.astype(float)
+        df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike','bid','ask']]
+        
+        return df_tick_data
+
+    def thl_operation(self, mode=InformationType.Offline):
+        updated_ticks = self.update_quotes(just_last_update=True,mode=InformationType.Offline)
+        
+        options_dataframe_list = []
+        for ticks_to_process in updated_ticks:
+            options_updated = []
+            for i in ticks_to_process:
+                options_updated.append(i.__dict__)
+
+            df_options_updated = self.thl_convert_dict_from_update_ticks_to_dataframe(options_updated)
+            df_options_updated.reset_index()
+            df_options_updated = df_options_updated.set_index('strike')
+            options_dataframe_list.append(df_options_updated)
+
+        df_this_month = options_dataframe_list[0]
+        df_next_month = options_dataframe_list[1]
+        df_after_next_month = options_dataframe_list[2]
+
+        df_thl = pd.merge(df_this_month, df_next_month, left_index=True, right_index=True)
+        df_thl_next_month = pd.merge(df_next_month, df_after_next_month, left_index=True, right_index=True)
+        df_thl_calendar = pd.merge(df_this_month, df_after_next_month, left_index=True, right_index=True)
+
+        comparison_this_month = self.thl_compare_two_dataframes(df_thl)
+        comparison_next_month = self.thl_compare_two_dataframes(df_thl_next_month)
+        comparison_calendar = self.thl_compare_two_dataframes(df_thl_calendar)
+        
+        return_of_funcion = dict(thl=comparison_this_month, thl_next_month=comparison_next_month, thl_calendar=comparison_calendar)
+
+        return return_of_funcion
