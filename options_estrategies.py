@@ -50,7 +50,7 @@ class options_estrategies():
         #get ASK and BID price and volume
         #returning BookInfo
         mt5.market_book_add(symb)
-        time.sleep(0.1)
+        time.sleep(0.3)
         items = mt5.market_book_get(symb)
         mt5.market_book_release(symb)  
         if len(items) > 0:
@@ -113,6 +113,9 @@ class options_estrategies():
                 if float(wing_3_price) == 0:
                     continue
                 
+            wing_1_price = round(wing_1_price,2)
+            wing_2_price = round(wing_2_price,2)
+            wing_3_price = round(wing_3_price,2)
 
             cost =  round(wing_1_price - (2 * wing_2_price) + wing_3_price,2)
             
@@ -265,9 +268,10 @@ class options_estrategies():
 
     def ratio_convert_dict_from_update_ticks_to_dataframe(self,tick_data):
         df_tick_data = pd.DataFrame.from_dict(tick_data)
-        df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
-        df_tick_data['ratio'] = df_tick_data['bid'] - df_tick_data['ask'].shift(1)
-        df_tick_data = df_tick_data[['option_name', 'strike', 'bid', 'ask', 'last_tick','ratio','stock_price','deal_type_zone','updated_at']]      
+        if len(df_tick_data) > 0:
+            df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
+            df_tick_data['ratio'] = df_tick_data['bid'] - df_tick_data['ask'].shift(1)
+            df_tick_data = df_tick_data[['option_name', 'strike', 'bid', 'ask', 'last_tick','ratio','stock_price','deal_type_zone','updated_at']]      
         return df_tick_data
 
     def ratio_between_strikes(self, just_last_update= True, mode=InformationType.Offline, period = Option_Due.This_Month):
@@ -296,11 +300,12 @@ class options_estrategies():
 
         ratio_statistic_finder = df_options_history[['updated_at','option_name','ratio']]
         ratio_statistic_finder = ratio_statistic_finder.set_index('updated_at')
-        ratio_statistic_finder = ratio_statistic_finder.between_time('10:10', '17:00')
+        ratio_statistic_finder = ratio_statistic_finder.between_time('10:15', '16:45')
         ratio_statistic_finder = ratio_statistic_finder.reset_index()
         ratio_statistic_finder = ratio_statistic_finder.pivot(index='updated_at', columns='option_name', values='ratio')
         ratio_statistic_finder = ratio_statistic_finder.dropna(axis=1)
-        ratio_statistic_finder
+        
+        ratio_statistic_finder = ratio_statistic_finder.groupby(pd.Grouper(freq='D')).mean()
 
         ratio_statistic_data = {}
         for (column, value) in ratio_statistic_finder.iteritems():
@@ -327,13 +332,14 @@ class options_estrategies():
 
     def tax_convert_dict_from_update_ticks_to_dataframe(self, tick_data):
         df_tick_data = pd.DataFrame.from_dict(tick_data)
-        df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
-        df_tick_data['stock_price'] = df_tick_data.stock_price.astype(float)
-        df_tick_data['exercise_result'] = df_tick_data['strike'] -  df_tick_data['stock_price']  
-            
-        df_tick_data['tax_exercise'] = (((df_tick_data['strike'] -  df_tick_data['stock_price']) + df_tick_data['bid'])  / df_tick_data['stock_price']) * 100
-        df_tick_data['tax'] = (df_tick_data['bid'] / df_tick_data['stock_price'])*100
-        df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike', 'bid','tax_exercise', 'tax']]      
+        if len(df_tick_data) > 0:
+            df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
+            df_tick_data['stock_price'] = df_tick_data.stock_price.astype(float)
+            df_tick_data['exercise_result'] = df_tick_data['strike'] -  df_tick_data['stock_price']  
+                
+            df_tick_data['tax_exercise'] = (((df_tick_data['strike'] -  df_tick_data['stock_price']) + df_tick_data['bid'])  / df_tick_data['stock_price']) * 100
+            df_tick_data['tax'] = (df_tick_data['bid'] / df_tick_data['stock_price'])*100
+            df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike', 'bid','tax_exercise', 'tax']]      
         return df_tick_data
     
     def tax_operation(self):
@@ -359,10 +365,11 @@ class options_estrategies():
 
     def thl_convert_dict_from_update_ticks_to_dataframe(self,tick_data):
         df_tick_data = pd.DataFrame.from_dict(tick_data)
-        df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
-        df_tick_data['stock_price'] = df_tick_data.stock_price.astype(float)
-        df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike','bid','ask']]
-        
+        if len(df_tick_data) > 0:
+            df_tick_data = df_tick_data.drop(columns=['_sa_instance_state','timestamp_option','days_to_due_date'])
+            df_tick_data['stock_price'] = df_tick_data.stock_price.astype(float)
+            df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike','bid','ask']]
+            
         return df_tick_data
 
     def thl_operation(self, mode=InformationType.Offline):
@@ -375,9 +382,11 @@ class options_estrategies():
                 options_updated.append(i.__dict__)
 
             df_options_updated = self.thl_convert_dict_from_update_ticks_to_dataframe(options_updated)
-            df_options_updated.reset_index()
-            df_options_updated = df_options_updated.set_index('strike')
-            options_dataframe_list.append(df_options_updated)
+            if len(df_options_updated) > 0: 
+                df_options_updated.reset_index()
+                df_options_updated = df_options_updated.set_index('strike')
+                options_dataframe_list.append(df_options_updated)
+
 
         df_this_month = options_dataframe_list[0]
         df_next_month = options_dataframe_list[1]
