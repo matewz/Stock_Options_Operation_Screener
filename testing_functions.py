@@ -4,6 +4,11 @@ import models as model
 
 estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
 
+
+def testing_anakha13_operations():
+    returned_anakha13_operations = estrategies.anakha13_spiral(mode=InformationType.Offline)
+    print(returned_anakha13_operations)
+
 def testing_thl_operations():
     returned_thl_operations = estrategies.thl_operation(mode=InformationType.Offline)
     print(returned_thl_operations['thl'])
@@ -34,6 +39,8 @@ def testing_butterfly_realtime_for_this_month():
     butterfly = estrategies.butterfly(0.05,False,Option_Due.This_Month, InformationType.Real_Time)
     print(butterfly)
 
+
+testing_anakha13_operations()
 testing_thl_operations()
 testing_tax_operation()
 testing_ratio_between_strikes_statistic_realtime_compare()
