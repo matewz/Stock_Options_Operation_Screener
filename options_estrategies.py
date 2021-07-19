@@ -92,12 +92,18 @@ class options_estrategies():
             df_tick_data['broken_wing'] = round(df_tick_data['strike'].shift(1) - (2*df_tick_data['strike']) + df_tick_data['strike'].shift(-1),2)
 
             df_tick_data['cost_trava_alta'] = round(df_tick_data['ask'] - df_tick_data['bid'].shift(-1),2)
+
             df_tick_data['anakha_1.2'] = round(df_tick_data['ask'] - (1.2 * df_tick_data['bid'].shift(-1)),2)
             df_tick_data['anakha_1.2_pct_change'] = df_tick_data['anakha_1.2'].pct_change()
+
             df_tick_data['anakha_1.3'] = round(df_tick_data['ask'] - (1.333 * df_tick_data['bid'].shift(-1)),2)
             df_tick_data['anakha_1.3_pct_change'] = df_tick_data['anakha_1.3'].pct_change()
-            df_tick_data['anakha_1.4'] = round(df_tick_data['ask'] - (1.4 * df_tick_data['bid'].shift(-1)),2)
-            df_tick_data['anakha_1.4_pct_change'] = df_tick_data['anakha_1.4'].pct_change()
+
+            df_tick_data['anakha_1.34'] = round(df_tick_data['ask'] - (1.34 * df_tick_data['bid'].shift(-1)),2)
+            df_tick_data['anakha_1.34_pct_change'] = df_tick_data['anakha_1.34'].pct_change()
+
+            df_tick_data['anakha_1.35'] = round(df_tick_data['ask'] - (1.35 * df_tick_data['bid'].shift(-1)),2)
+            df_tick_data['anakha_1.35_pct_change'] = df_tick_data['anakha_1.35'].pct_change()
 
 
         return df_tick_data
@@ -129,9 +135,11 @@ class options_estrategies():
             df_tick_data = self.convert_dict_from_update_ticks_to_dataframe(tick_data=tick_data)
             df_tick_data = df_tick_data[
                     ['updated_at','option_name', 'strike','deal_type_zone', 'bid','ask'
-                    ,'anakha_1.2','anakha_1.2_pct_change'
-                    ,'anakha_1.3','anakha_1.3_pct_change'
-                    ,'anakha_1.4','anakha_1.4_pct_change'] # ,'ratio','cost_butterfly','broken_wing','cost_trava_alta']
+                        ,'anakha_1.2','anakha_1.2_pct_change'
+                        ,'anakha_1.3','anakha_1.3_pct_change'
+                        ,'anakha_1.34','anakha_1.34_pct_change'
+                        ,'anakha_1.35','anakha_1.35_pct_change'
+                    ] # ,'ratio','cost_butterfly','broken_wing','cost_trava_alta']
                 ]   
    
         return df_tick_data
@@ -446,9 +454,9 @@ class options_estrategies():
         return return_of_funcion
 
 
-    def anakha13_spiral(self,mode=InformationType.Real_Time, period = Option_Due.This_Month):
+    def anakha13_spiral(self,mode=InformationType.Real_Time, just_last_update =True,period = Option_Due.This_Month):
         
-        updated_ticks = self.update_quotes(just_last_update=True,mode=mode)
+        updated_ticks = self.update_quotes(just_last_update=just_last_update,mode=mode)
 
         ticks_to_process = self.ticks_from_period(updated_ticks,period)
 
