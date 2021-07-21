@@ -93,19 +93,6 @@ class options_estrategies():
 
             df_tick_data['cost_trava_alta'] = round(df_tick_data['ask'] - df_tick_data['bid'].shift(-1),2)
 
-            df_tick_data['anakha_1.2'] = round(df_tick_data['ask'] - (1.2 * df_tick_data['bid'].shift(-1)),2)
-            df_tick_data['anakha_1.2_pct_change'] = df_tick_data['anakha_1.2'].pct_change()
-
-            df_tick_data['anakha_1.3'] = round(df_tick_data['ask'] - (1.333 * df_tick_data['bid'].shift(-1)),2)
-            df_tick_data['anakha_1.3_pct_change'] = df_tick_data['anakha_1.3'].pct_change()
-
-            df_tick_data['anakha_1.34'] = round(df_tick_data['ask'] - (1.34 * df_tick_data['bid'].shift(-1)),2)
-            df_tick_data['anakha_1.34_pct_change'] = df_tick_data['anakha_1.34'].pct_change()
-
-            df_tick_data['anakha_1.35'] = round(df_tick_data['ask'] - (1.35 * df_tick_data['bid'].shift(-1)),2)
-            df_tick_data['anakha_1.35_pct_change'] = df_tick_data['anakha_1.35'].pct_change()
-
-
         return df_tick_data
 
     def ratio_convert_dict_from_update_ticks_to_dataframe(self,tick_data):
@@ -128,23 +115,6 @@ class options_estrategies():
             df_tick_data = self.convert_dict_from_update_ticks_to_dataframe(tick_data=tick_data)
             df_tick_data = df_tick_data[['option_name','deal_type_zone','stock_price','strike', 'bid','tax_exercise', 'tax']]      
         return df_tick_data
-
-    def anakha13_convert_dict_from_update_ticks_to_dataframe(self, tick_data):
-        df_tick_data = pd.DataFrame.from_dict(tick_data)
-        if len(df_tick_data) > 0:
-            df_tick_data = self.convert_dict_from_update_ticks_to_dataframe(tick_data=tick_data)
-            df_tick_data = df_tick_data[
-                    ['updated_at','option_name', 'strike','deal_type_zone', 'bid','ask'
-                        ,'anakha_1.2','anakha_1.2_pct_change'
-                        ,'anakha_1.3','anakha_1.3_pct_change'
-                        ,'anakha_1.34','anakha_1.34_pct_change'
-                        ,'anakha_1.35','anakha_1.35_pct_change'
-                    ] # ,'ratio','cost_butterfly','broken_wing','cost_trava_alta']
-                ]   
-   
-        return df_tick_data
-
-
 
 
     def check_butterfly_realtime(self, tick_data, cost_limit = 1, show_broken_wings = False):
@@ -436,39 +406,21 @@ class options_estrategies():
                 df_options_updated = df_options_updated.set_index('strike')
                 options_dataframe_list.append(df_options_updated)
 
+        if len(options_dataframe_list) == 3:
+            df_this_month = options_dataframe_list[0]
+            df_next_month = options_dataframe_list[1]
+            df_after_next_month = options_dataframe_list[2]
 
-        df_this_month = options_dataframe_list[0]
-        df_next_month = options_dataframe_list[1]
-        df_after_next_month = options_dataframe_list[2]
+            df_thl = pd.merge(df_this_month, df_next_month, left_index=True, right_index=True)
+            df_thl_next_month = pd.merge(df_next_month, df_after_next_month, left_index=True, right_index=True)
+            df_thl_calendar = pd.merge(df_this_month, df_after_next_month, left_index=True, right_index=True)
 
-        df_thl = pd.merge(df_this_month, df_next_month, left_index=True, right_index=True)
-        df_thl_next_month = pd.merge(df_next_month, df_after_next_month, left_index=True, right_index=True)
-        df_thl_calendar = pd.merge(df_this_month, df_after_next_month, left_index=True, right_index=True)
-
-        comparison_this_month = self.thl_compare_two_dataframes(df_thl)
-        comparison_next_month = self.thl_compare_two_dataframes(df_thl_next_month)
-        comparison_calendar = self.thl_compare_two_dataframes(df_thl_calendar)
-        
-        return_of_funcion = dict(thl=comparison_this_month, thl_next_month=comparison_next_month, thl_calendar=comparison_calendar)
+            comparison_this_month = self.thl_compare_two_dataframes(df_thl)
+            comparison_next_month = self.thl_compare_two_dataframes(df_thl_next_month)
+            comparison_calendar = self.thl_compare_two_dataframes(df_thl_calendar)
+            
+            return_of_funcion = dict(thl=comparison_this_month, thl_next_month=comparison_next_month, thl_calendar=comparison_calendar)
+        else:
+            return_of_funcion = None
 
         return return_of_funcion
-
-
-    def anakha13_spiral(self,mode=InformationType.Real_Time, just_last_update =True,period = Option_Due.This_Month):
-        
-        updated_ticks = self.update_quotes(just_last_update=just_last_update,mode=mode)
-
-        ticks_to_process = self.ticks_from_period(updated_ticks,period)
-
-        options_updated = []
-        for i in ticks_to_process:
-            options_updated.append(i.__dict__)
-
-        df_options_updated = self.anakha13_convert_dict_from_update_ticks_to_dataframe(options_updated)
-
-        if mode == InformationType.Offline:
-            df_options_updated = df_options_updated.set_index('updated_at')
-            df_options_updated = df_options_updated.between_time('10:15', '16:45')
-            df_options_updated = df_options_updated.reset_index()
-
-        return df_options_updated        

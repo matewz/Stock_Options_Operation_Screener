@@ -6,6 +6,16 @@ import time
 import datetime
 import pandas as pd
 
+# THL Alert Management
+thl_this_month_good_cost = 0.20
+thl_next_month_good_cost = 0.30
+thl_after_next_month_good_cost = 0.35
+
+# BUTTERFLY Alert Management
+use_butterfly_with_broken_wings = False
+butterfly_good_cost = 0.03
+butterfly_percent_var_of_stock_to_max_payoff = 4
+
 estrategies = opt_est.options_estrategies(model, model.PETR4, model.PETR4_OPTIONS)
 
 last_warnings = []
@@ -17,7 +27,10 @@ def check_exists_alarm(operation, option_name, time_expiration = 4):
             alarme_to_remove.append(last_warnings[i])
 
     for i in range(0,len(alarme_to_remove)):
-        last_warnings.remove(last_warnings[i])
+        try:
+            last_warnings.remove(last_warnings[i])
+        except:
+            continue
     
     alarme_to_remove.clear()
 
@@ -26,12 +39,10 @@ def check_exists_alarm(operation, option_name, time_expiration = 4):
             return True
         
     return False
-    
-    
+      
 def add_alarm(operation, option_name):
     warning = dict(operation=str(operation), option_name=str(option_name), timestamp=datetime.datetime.now())
     last_warnings.append(warning)
-
 
 def ratio_compare():
     returned_ratio_compare = estrategies.ratio_between_strikes_statistic_realtime_compare()
@@ -59,60 +70,64 @@ def ratio_compare():
 
 def thl_compare():
     returned_thl_operations = estrategies.thl_operation(mode=InformationType.Real_Time)
-    
-    comparison_this_month = returned_thl_operations['thl']
-    comparison_next_month = returned_thl_operations['thl_next_month']
-    comparison_calendar = returned_thl_operations['thl_calendar']
+    if returned_thl_operations != None:
+        comparison_this_month = returned_thl_operations['thl']
+        comparison_next_month = returned_thl_operations['thl_next_month']
+        comparison_calendar = returned_thl_operations['thl_calendar']
 
-    good_operation_THL = comparison_this_month[comparison_this_month['thl_percent_of_strike'] < 1.5]
-    good_operation_THL_next_month = comparison_next_month[comparison_next_month['thl_percent_of_strike'] < 1.5]
-    good_operation_calendar = comparison_calendar[comparison_calendar['thl_percent_of_strike'] < 1.5]
+        good_operation_THL = comparison_this_month[comparison_this_month['thl_cost'] < thl_this_month_good_cost]
+        good_operation_THL_next_month = comparison_next_month[comparison_next_month['thl_cost'] < thl_next_month_good_cost]
+        good_operation_calendar = comparison_calendar[comparison_calendar['thl_cost'] < thl_after_next_month_good_cost]
 
-    if len(good_operation_THL.index) > 0:
-        if check_exists_alarm('THL',good_operation_THL) == False:
-            AvisoSonoro(400)
-            add_alarm('THL',good_operation_THL)
+        if len(good_operation_THL.index) > 0:
+            if check_exists_alarm('THL',good_operation_THL) == False:
+                AvisoSonoro(400)
+                add_alarm('THL',good_operation_THL)
 
-            print("---------------------------------- THL ---------------------")
-            print(good_operation_THL)
-            print("---------------------------------- THL ---------------------")
+                print("---------------------------------- THL ---------------------")
+                print(good_operation_THL)
+                print("---------------------------------- THL ---------------------")
+                
+        if len(good_operation_THL_next_month.index) > 0:
+            if check_exists_alarm('THL',good_operation_THL_next_month) == False:
+                AvisoSonoro(400)
+                add_alarm('THL',good_operation_THL_next_month)
+
+                print("---------------------------------- THL NEXT MONTH ---------------------")
+                print(good_operation_THL_next_month)
+                print("---------------------------------- THL NEXT MONTH ---------------------")
             
-    if len(good_operation_THL_next_month.index) > 0:
-        if check_exists_alarm('THL',good_operation_THL_next_month) == False:
-            AvisoSonoro(400)
-            add_alarm('THL',good_operation_THL_next_month)
 
-            print("---------------------------------- THL NEXT MONTH ---------------------")
-            print(good_operation_THL_next_month)
-            print("---------------------------------- THL NEXT MONTH ---------------------")
-        
+        if len(good_operation_calendar.index) > 0:
+            if check_exists_alarm('THL',good_operation_calendar) == False:
+                AvisoSonoro(400)
+                add_alarm('THL',good_operation_calendar)
 
-    if len(good_operation_calendar.index) > 0:
-        if check_exists_alarm('THL',good_operation_calendar) == False:
-            AvisoSonoro(400)
-            add_alarm('THL',good_operation_calendar)
-
-            print("---------------------------------- THL CALENDAR ---------------------")
-            print(good_operation_THL_next_month)
-            print("---------------------------------- THL CALENDAR ---------------------")        
-
+                print("---------------------------------- THL CALENDAR ---------------------")
+                print(good_operation_THL_next_month)
+                print("---------------------------------- THL CALENDAR ---------------------")        
 
 def butterfly_compare():
 
-    returned_butterfly_operations = estrategies.butterfly(cost_limit = 0.03, show_broken_wings = False, period = Option_Due.This_Month, mode=InformationType.Real_Time)
+    returned_butterfly_operations = estrategies.butterfly(cost_limit = butterfly_good_cost, show_broken_wings = use_butterfly_with_broken_wings, period = Option_Due.This_Month, mode=InformationType.Real_Time)
+    
     if len(returned_butterfly_operations) > 0:
+
         df_butterfly_offline = pd.DataFrame.from_dict(returned_butterfly_operations)
         #print(df_butterfly_offline)
-        df_butterfly_offline = df_butterfly_offline [['BUTTERFLY','COST','MAX_VOLUME','PERCENT_2_MAX_PAYOFF']]
+        df_butterfly_offline['PERCENT_2_MAX_PAYOFF']  = df_butterfly_offline.PERCENT_2_MAX_PAYOFF.astype(float)
+        df_butterfly_offline = df_butterfly_offline[df_butterfly_offline['PERCENT_2_MAX_PAYOFF'] < butterfly_percent_var_of_stock_to_max_payoff]
+        if len(df_butterfly_offline) > 0:
 
-        if check_exists_alarm('BUTTERFLY',df_butterfly_offline) == False:
-            AvisoSonoro(300)
-            add_alarm('BUTTERFLY',df_butterfly_offline)
+            df_butterfly_offline = df_butterfly_offline [['BUTTERFLY','COST','MAX_VOLUME','PERCENT_2_MAX_PAYOFF']]
 
-            print("---------------------------------- BUTTERFLY ---------------------")
-            print(df_butterfly_offline)
-            print("---------------------------------- returned_butterfly_operations ---------------------")        
+            if check_exists_alarm('BUTTERFLY',df_butterfly_offline) == False:
+                AvisoSonoro(300)
+                add_alarm('BUTTERFLY',df_butterfly_offline)
 
+                print("---------------------------------- BUTTERFLY ---------------------")
+                print(df_butterfly_offline)
+                print("---------------------------------- returned_butterfly_operations ---------------------")        
 
 
 
@@ -125,6 +140,5 @@ while 1:
     butterfly_compare()
     ratio_compare()
     thl_compare()
-
 
     time.sleep(1)
